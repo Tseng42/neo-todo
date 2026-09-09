@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Neo-Brutalism 雲端個人化待辦清單</title>
   
-  <!-- PWA 設定 -->
   <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIk5lby1CcnV0YWxpc20gVG9kbyIsCiAgInNob3J0X25hbWUiOiAiTmVvVG9kbyIsCiAgInN0YXJ0X3VybCI6ICIvIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjZjdmM2U5IiwKICAidGhlbWVfY29sb3IiOiAiI2ZkZTA0NyIKfQ==">
   <meta name="theme-color" content="#fde047">
 
@@ -44,7 +43,6 @@
 
     .neo-card { width: 100%; max-width: 640px; background: var(--card-bg); border: 3px solid var(--border-color); box-shadow: var(--shadow-hard-lg); border-radius: 16px; padding: 28px; position: relative; }
 
-    /* 離線狀態條 */
     .offline-banner { display: none; background: #ef4444; color: #fff; text-align: center; font-size: 11px; font-weight: 900; padding: 4px; border-radius: 6px; margin-bottom: 12px; border: 1.5px solid var(--border-color); }
     .offline-banner.show { display: block; }
 
@@ -90,7 +88,6 @@
     .todo-item.completed { opacity: 0.6; }
     .todo-item.completed .todo-title { text-decoration: line-through; }
     
-    /* 逾期標記樣式 */
     .todo-item.overdue { border-color: var(--accent-pink); }
     .badge-overdue { background: var(--accent-pink); color: #fff; font-weight: 900; }
 
@@ -216,12 +213,13 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, orderBy, limit, enableIndexedDbPersistence, writeBatch } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
+    // 注意：把 authDomain 改成你自己的 Vercel 網址，避免跨網域 Cookie 被阻擋
     const firebaseConfig = {
       apiKey: "AIzaSyCMI_GPgct0PDibMt5itg4_InZ7TJDbLBI",
-      authDomain: "neo-task-suite.firebaseapp.com",
+      authDomain: "neo-todo-two.vercel.app", // 請確保填入你的真實 Vercel 網址
       projectId: "neo-task-suite",
       storageBucket: "neo-task-suite.firebasestorage.app",
       messagingSenderId: "988363277791",
@@ -245,7 +243,6 @@
     let toastTimer = null;
     let unsubscribe = null;
 
-    // 監聽網路連線狀態
     window.addEventListener('online', updateOnlineStatus);
     window.addEventListener('offline', updateOnlineStatus);
     function updateOnlineStatus() {
@@ -261,7 +258,6 @@
       document.body.classList.toggle('dark-mode');
     };
 
-    // 匯出 JSON 資料
     window.exportData = () => {
       if (todos.length === 0) return alert('目前沒有任務可供匯出');
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(todos, null, 2));
@@ -317,13 +313,19 @@
       showUndoToast(`已清除 ${completedTodos.length} 個已完成任務`, completedTodos);
     };
 
+    // 改用全頁面轉址 (Redirect) 模式，適應手機瀏覽器
     window.loginWithGoogle = () => {
-      signInWithPopup(auth, provider).catch(error => console.error("登入失敗", error));
+      signInWithRedirect(auth, provider);
     };
 
     window.logout = () => {
       signOut(auth);
     };
+
+    // 接收轉址驗證結果
+    getRedirectResult(auth).catch(error => {
+      if (error.code) console.error("轉址登入發生錯誤:", error);
+    });
 
     onAuthStateChanged(auth, user => {
       if (user) {
@@ -348,7 +350,6 @@
       }
     });
 
-    // 加入 orderBy 與 limit 優化效能
     function loadUserTodos(uid) {
       const q = query(
         collection(db, "todos"), 
