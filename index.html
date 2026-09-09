@@ -214,7 +214,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, orderBy, limit, enableIndexedDbPersistence, writeBatch } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, enableIndexedDbPersistence, writeBatch } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCMI_GPgct0PDibMt5itg4_InZ7TJDbLBI",
@@ -312,12 +312,9 @@
       showUndoToast(`已清除 ${completedTodos.length} 個已完成任務`, completedTodos);
     };
 
-    // 使用彈出視窗登入 (signInWithPopup)，確保電腦跨網域狀態正常寫入
     window.loginWithGoogle = () => {
       signInWithPopup(auth, provider)
-        .then(result => {
-          console.log("登入成功:", result.user);
-        })
+        .then(result => console.log("登入成功:", result.user))
         .catch(error => {
           console.error("登入失敗:", error);
           alert("登入失敗: " + error.message);
@@ -351,17 +348,19 @@
       }
     });
 
+    // 簡化查詢條件，讓實時監聽 (onSnapshot) 不受索引限制影響
     function loadUserTodos(uid) {
-      const q = query(
-        collection(db, "todos"), 
-        where("uid", "==", uid),
-        orderBy("createdAt", "desc"),
-        limit(200)
-      );
+      const q = query(collection(db, "todos"), where("uid", "==", uid));
       
       unsubscribe = onSnapshot(q, snapshot => {
-        todos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // 在前端自動依建立時間由新到舊排序 (createdAt desc)
+        todos = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        
         renderTodos();
+      }, error => {
+        console.error("即時同步發生錯誤:", error);
       });
     }
 
