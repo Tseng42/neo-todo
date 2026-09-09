@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Neo-Brutalism 雲端個人化待辦清單</title>
+  
+  <!-- PWA 設定 -->
+  <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIk5lby1CcnV0YWxpc20gVG9kbyIsCiAgInNob3J0X25hbWUiOiAiTmVvVG9kbyIsCiAgInN0YXJ0X3VybCI6ICIvIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjZjdmM2U5IiwKICAidGhlbWVfY29sb3IiOiAiI2ZkZTA0NyIKfQ==">
+  <meta name="theme-color" content="#fde047">
+
   <style>
     :root {
       --bg-color: #f7f3e9;
@@ -22,63 +27,78 @@
       --text-main: #000000;
     }
 
+    /* 夜間新粗獷主題 (Dark Neo-Brutalism) */
+    body.dark-mode {
+      --bg-color: #121212;
+      --card-bg: #1e1e1e;
+      --border-color: #ffffff;
+      --shadow-hard: 5px 5px 0px #ffffff;
+      --shadow-hard-sm: 3px 3px 0px #ffffff;
+      --shadow-hard-lg: 8px 8px 0px #ffffff;
+      --text-main: #ffffff;
+      --accent-yellow: #facc15;
+      background-image: radial-gradient(#333 1px, transparent 1px);
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: var(--bg-color); background-image: radial-gradient(#000 1px, transparent 1px); background-size: 20px 20px; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 40px 20px; color: var(--text-main); }
+    body { background-color: var(--bg-color); background-image: radial-gradient(#000 1px, transparent 1px); background-size: 20px 20px; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 40px 20px; color: var(--text-main); transition: background-color 0.2s; }
 
     .neo-card { width: 100%; max-width: 620px; background: var(--card-bg); border: 3px solid var(--border-color); box-shadow: var(--shadow-hard-lg); border-radius: 16px; padding: 28px; position: relative; }
 
     .top-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
-    .title-box { background: var(--accent-yellow); border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); padding: 6px 14px; border-radius: 8px; transform: rotate(-1deg); }
+    .title-box { background: var(--accent-yellow); color: #000; border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); padding: 6px 14px; border-radius: 8px; transform: rotate(-1deg); }
     .title-box h1 { font-size: 20px; font-weight: 900; }
 
-    /* 登入相關 UI */
-    .auth-section { display: flex; align-items: center; gap: 10px; }
-    .btn-login { background: var(--accent-yellow); border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); padding: 8px 14px; border-radius: 8px; font-weight: 900; font-size: 13px; cursor: pointer; }
-    .btn-login:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0px #000; }
-    .user-profile { display: none; align-items: center; gap: 8px; background: #fff; border: 2px solid var(--border-color); padding: 4px 10px; border-radius: 20px; box-shadow: 2px 2px 0px #000; }
-    .user-profile img { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #000; }
-    .user-profile span { font-weight: 800; font-size: 12px; }
-    .btn-logout { background: var(--accent-pink); color: #fff; border: 1.5px solid #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 900; cursor: pointer; }
+    .header-controls { display: flex; align-items: center; gap: 8px; }
+    .btn-icon { background: var(--card-bg); color: var(--text-main); border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); padding: 6px 10px; border-radius: 8px; font-weight: 900; font-size: 13px; cursor: pointer; }
+    .btn-icon:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0px var(--border-color); }
 
-    /* 進度條 */
-    .progress-box { background: #ffffff; border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); border-radius: 10px; padding: 12px; margin-bottom: 20px; }
+    .auth-section { display: flex; align-items: center; gap: 10px; }
+    .btn-login { background: var(--accent-yellow); color: #000; border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); padding: 8px 14px; border-radius: 8px; font-weight: 900; font-size: 13px; cursor: pointer; }
+    .user-profile { display: none; align-items: center; gap: 8px; background: var(--card-bg); border: 2px solid var(--border-color); padding: 4px 10px; border-radius: 20px; box-shadow: 2px 2px 0px var(--border-color); }
+    .user-profile img { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--border-color); }
+    .user-profile span { font-weight: 800; font-size: 12px; color: var(--text-main); }
+    .btn-logout { background: var(--accent-pink); color: #fff; border: 1.5px solid var(--border-color); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 900; cursor: pointer; }
+
+    .progress-box { background: var(--card-bg); border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); border-radius: 10px; padding: 12px; margin-bottom: 20px; }
     .progress-info { display: flex; justify-content: space-between; font-weight: 800; font-size: 13px; margin-bottom: 6px; }
-    .progress-track { height: 16px; background: #f1f5f9; border: 2px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+    .progress-track { height: 16px; background: rgba(0,0,0,0.1); border: 2px solid var(--border-color); border-radius: 8px; overflow: hidden; }
     .progress-fill { height: 100%; width: 0%; background: var(--accent-green); transition: width 0.3s ease; }
 
-    /* 搜尋與標籤 */
-    .search-pill { display: flex; align-items: center; background: #fff; border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); border-radius: 10px; padding: 8px 12px; margin-bottom: 20px; }
-    .search-pill input { border: none; outline: none; width: 100%; font-size: 14px; font-weight: 700; margin-left: 8px; background: transparent; }
-    .tab-group { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; }
-    .neo-tab { background: #fff; border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer; white-space: nowrap; }
+    .search-pill { display: flex; align-items: center; background: var(--card-bg); border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; }
+    .search-pill input { border: none; outline: none; width: 100%; font-size: 14px; font-weight: 700; margin-left: 8px; background: transparent; color: var(--text-main); }
+    
+    .filter-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab-group { display: flex; gap: 8px; overflow-x: auto; }
+    .neo-tab { background: var(--card-bg); color: var(--text-main); border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; white-space: nowrap; }
     .neo-tab.active { background: var(--accent-purple); color: #fff; }
+    
+    .manage-tools { display: flex; gap: 6px; }
+    .btn-tool { background: var(--card-bg); color: var(--text-main); border: 1.5px solid var(--border-color); box-shadow: 1px 1px 0px var(--border-color); border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 800; cursor: pointer; }
 
-    /* 輸入區 */
-    .input-box { background: #fff; border: 2px solid var(--border-color); box-shadow: var(--shadow-hard); border-radius: 12px; padding: 14px; margin-bottom: 24px; display: flex; flex-direction: column; gap: 12px; }
-    .neo-input { border: 2px solid var(--border-color); padding: 10px 12px; border-radius: 8px; font-size: 14px; font-weight: 700; outline: none; }
+    .input-box { background: var(--card-bg); border: 2px solid var(--border-color); box-shadow: var(--shadow-hard); border-radius: 12px; padding: 14px; margin-bottom: 24px; display: flex; flex-direction: column; gap: 12px; }
+    .neo-input { border: 2px solid var(--border-color); padding: 10px 12px; border-radius: 8px; font-size: 14px; font-weight: 700; outline: none; background: transparent; color: var(--text-main); }
     .input-options { display: flex; gap: 8px; flex-wrap: wrap; }
-    .neo-select, .neo-date { border: 2px solid var(--border-color); padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 800; background: #fff; outline: none; cursor: pointer; }
+    .neo-select, .neo-date { border: 2px solid var(--border-color); padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 800; background: var(--card-bg); color: var(--text-main); outline: none; cursor: pointer; }
     .btn-add { margin-left: auto; background: var(--accent-pink); color: #fff; border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); padding: 8px 18px; border-radius: 8px; font-weight: 900; font-size: 13px; cursor: pointer; }
-    .btn-add:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0px #000; }
 
-    /* 列表清單 */
     .todo-list { list-style: none; display: flex; flex-direction: column; gap: 12px; max-height: 380px; overflow-y: auto; padding-right: 4px; }
-    .todo-item { background: #fff; border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-    .todo-item.completed { background: #f8fafc; opacity: 0.7; }
+    .todo-item { background: var(--card-bg); border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .todo-item.completed { opacity: 0.6; }
     .todo-item.completed .todo-title { text-decoration: line-through; }
     .todo-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .todo-left { display: flex; align-items: center; gap: 10px; flex: 1; overflow: hidden; }
     .neo-cb { width: 18px; height: 18px; accent-color: #000; cursor: pointer; }
     .todo-title { font-size: 14px; font-weight: 800; word-break: break-all; }
-    .badge { font-size: 10px; font-weight: 900; padding: 2px 6px; border: 1px solid var(--border-color); border-radius: 4px; box-shadow: 1px 1px 0px #000; }
+    .badge { font-size: 10px; font-weight: 900; padding: 2px 6px; border: 1px solid var(--border-color); border-radius: 4px; box-shadow: 1px 1px 0px var(--border-color); }
     .badge-p1 { background: var(--accent-pink); color: #fff; }
-    .badge-p2 { background: var(--accent-yellow); }
-    .badge-p3 { background: var(--accent-blue); }
-    .badge-cat { background: #e2e8f0; }
-    .btn-action { background: var(--accent-pink); color: #fff; border: 1.5px solid var(--border-color); box-shadow: 1px 1px 0px #000; border-radius: 4px; padding: 2px 6px; font-weight: 900; cursor: pointer; font-size: 12px; }
+    .badge-p2 { background: var(--accent-yellow); color: #000; }
+    .badge-p3 { background: var(--accent-blue); color: #000; }
+    .badge-cat { background: rgba(150,150,150,0.2); }
+    .btn-action { background: var(--accent-pink); color: #fff; border: 1.5px solid var(--border-color); box-shadow: 1px 1px 0px var(--border-color); border-radius: 4px; padding: 2px 6px; font-weight: 900; cursor: pointer; font-size: 12px; }
     .empty-state { text-align: center; padding: 30px 0; font-weight: 800; font-size: 14px; }
     
-    .login-prompt { text-align: center; padding: 40px 20px; font-weight: 800; font-size: 15px; background: #fff; border: 2px solid #000; box-shadow: var(--shadow-hard-sm); border-radius: 10px; margin-top: 20px; }
+    .login-prompt { text-align: center; padding: 40px 20px; font-weight: 800; font-size: 15px; background: var(--card-bg); border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); border-radius: 10px; margin-top: 20px; }
   </style>
 </head>
 <body>
@@ -89,23 +109,23 @@
         <h1>⚡ 任務清單</h1>
       </div>
       
-      <!-- 登入狀態控制 -->
-      <div class="auth-section">
-        <button id="loginBtn" class="btn-login" onclick="loginWithGoogle()">Google 登入</button>
-        <div class="user-profile" id="userProfile">
-          <img id="userAvatar" src="" alt="Avatar">
-          <span id="userName">User</span>
-          <button class="btn-logout" onclick="logout()">登出</button>
+      <div class="header-controls">
+        <button class="btn-icon" onclick="toggleDarkMode()" title="切換夜間模式">🌙</button>
+        <div class="auth-section">
+          <button id="loginBtn" class="btn-login" onclick="loginWithGoogle()">Google 登入</button>
+          <div class="user-profile" id="userProfile">
+            <img id="userAvatar" src="" alt="Avatar">
+            <span id="userName">User</span>
+            <button class="btn-logout" onclick="logout()">登出</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 未登入提示遮罩/區塊 -->
     <div id="loginPrompt" class="login-prompt">
       請先點擊右上角進行 Google 登入，以同步您的雲端待辦事項 ✨
     </div>
 
-    <!-- 主要操作區（登入後解鎖） -->
     <div id="mainApp" style="display: none;">
       <div class="search-pill">
         🔍 <input type="text" id="searchInput" placeholder="搜尋任務名稱..." oninput="renderTodos()">
@@ -121,11 +141,17 @@
         </div>
       </div>
 
-      <div class="tab-group">
-        <button class="neo-tab active" onclick="setFilter('all', this)">全部</button>
-        <button class="neo-tab" onclick="setFilter('工作', this)">💼 工作</button>
-        <button class="neo-tab" onclick="setFilter('個人', this)">🏠 個人</button>
-        <button class="neo-tab" onclick="setFilter('購物', this)">🛒 購物</button>
+      <div class="filter-bar">
+        <div class="tab-group">
+          <button class="neo-tab active" onclick="setFilter('all', this)">全部</button>
+          <button class="neo-tab" onclick="setFilter('工作', this)">💼 工作</button>
+          <button class="neo-tab" onclick="setFilter('個人', this)">🏠 個人</button>
+          <button class="neo-tab" onclick="setFilter('購物', this)">🛒 購物</button>
+        </div>
+        <div class="manage-tools">
+          <button class="btn-tool" id="toggleHideCompletedBtn" onclick="toggleHideCompleted()">👁️ 隱藏完成</button>
+          <button class="btn-tool" onclick="clearCompletedTodos()">🗑️ 清除已完成</button>
+        </div>
       </div>
 
       <div class="input-box">
@@ -154,13 +180,11 @@
     </div>
   </div>
 
-  <!-- Firebase 雲端邏輯模組 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, enableIndexedDbPersistence, writeBatch } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-    // 您的 Firebase 實際設定
     const firebaseConfig = {
       apiKey: "AIzaSyCMI_GPgct0PDibMt5itg4_InZ7TJDbLBI",
       authDomain: "neo-task-suite.firebaseapp.com",
@@ -175,11 +199,39 @@
     const db = getFirestore(app);
     const provider = new GoogleAuthProvider();
 
+    // 啟用 Firebase 離線快取
+    enableIndexedDbPersistence(db).catch(err => {
+      if (err.code === 'failed-precondition') console.log('多個頁面開啟，僅支援單一頁面離線快取');
+      else if (err.code === 'unimplemented') console.log('瀏覽器不支援離線快取');
+    });
+
     let todos = [];
     let currentFilter = 'all';
+    let hideCompleted = false;
     let unsubscribe = null;
 
-    // 全域綁定登入函式
+    window.toggleDarkMode = () => {
+      document.body.classList.toggle('dark-mode');
+    };
+
+    window.toggleHideCompleted = () => {
+      hideCompleted = !hideCompleted;
+      document.getElementById('toggleHideCompletedBtn').innerText = hideCompleted ? '👁️ 顯示完成' : '👁️ 隱藏完成';
+      renderTodos();
+    };
+
+    window.clearCompletedTodos = async () => {
+      const completedTodos = todos.filter(t => t.completed);
+      if (completedTodos.length === 0) return;
+      if (!confirm(`確定要清除 ${completedTodos.length} 個已完成任務嗎？`)) return;
+
+      const batch = writeBatch(db);
+      completedTodos.forEach(t => {
+        batch.delete(doc(db, "todos", t.id));
+      });
+      await batch.commit();
+    };
+
     window.loginWithGoogle = () => {
       signInWithPopup(auth, provider).catch(error => console.error("登入失敗", error));
     };
@@ -188,7 +240,6 @@
       signOut(auth);
     };
 
-    // 監聽登入狀態
     onAuthStateChanged(auth, user => {
       if (user) {
         document.getElementById('loginBtn').style.display = 'none';
@@ -200,7 +251,6 @@
         document.getElementById('userAvatar').src = user.photoURL || '';
         document.getElementById('appTitle').innerHTML = `<h1>⚡ ${user.displayName ? user.displayName.split(' ')[0] : '我的'} 的清單</h1>`;
 
-        // 即時同步該使用者的 Firestore 資料
         loadUserTodos(user.uid);
       } else {
         document.getElementById('loginBtn').style.display = 'block';
@@ -213,7 +263,6 @@
       }
     });
 
-    // 從 Firestore 讀取資料
     function loadUserTodos(uid) {
       const q = query(collection(db, "todos"), where("uid", "==", uid));
       unsubscribe = onSnapshot(q, snapshot => {
@@ -222,7 +271,6 @@
       });
     }
 
-    // 新增任務
     window.addTodo = async () => {
       const input = document.getElementById('todoInput');
       const text = input.value.trim();
@@ -240,13 +288,11 @@
       input.value = '';
     };
 
-    // 切換完成狀態
     window.toggleTodo = async (id, currentStatus) => {
       const docRef = doc(db, "todos", id);
       await updateDoc(docRef, { completed: !currentStatus });
     };
 
-    // 刪除任務
     window.deleteTodo = async (id) => {
       const docRef = doc(db, "todos", id);
       await deleteDoc(docRef);
@@ -268,7 +314,8 @@
       let filtered = todos.filter(t => {
         const matchCat = (currentFilter === 'all') || (t.category === currentFilter);
         const matchSearch = t.text.toLowerCase().includes(search);
-        return matchCat && matchSearch;
+        const matchHide = hideCompleted ? !t.completed : true;
+        return matchCat && matchSearch && matchHide;
       });
 
       const total = todos.length;
