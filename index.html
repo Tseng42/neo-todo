@@ -42,7 +42,11 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: var(--bg-color); background-image: radial-gradient(#000 1px, transparent 1px); background-size: 20px 20px; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 40px 20px; color: var(--text-main); transition: background-color 0.2s; }
 
-    .neo-card { width: 100%; max-width: 620px; background: var(--card-bg); border: 3px solid var(--border-color); box-shadow: var(--shadow-hard-lg); border-radius: 16px; padding: 28px; position: relative; }
+    .neo-card { width: 100%; max-width: 640px; background: var(--card-bg); border: 3px solid var(--border-color); box-shadow: var(--shadow-hard-lg); border-radius: 16px; padding: 28px; position: relative; }
+
+    /* 離線狀態條 */
+    .offline-banner { display: none; background: #ef4444; color: #fff; text-align: center; font-size: 11px; font-weight: 900; padding: 4px; border-radius: 6px; margin-bottom: 12px; border: 1.5px solid var(--border-color); }
+    .offline-banner.show { display: block; }
 
     .top-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
     .title-box { background: var(--accent-yellow); color: #000; border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); padding: 6px 14px; border-radius: 8px; transform: rotate(-1deg); }
@@ -85,6 +89,11 @@
     .todo-item { background: var(--card-bg); border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
     .todo-item.completed { opacity: 0.6; }
     .todo-item.completed .todo-title { text-decoration: line-through; }
+    
+    /* 逾期標記樣式 */
+    .todo-item.overdue { border-color: var(--accent-pink); }
+    .badge-overdue { background: var(--accent-pink); color: #fff; font-weight: 900; }
+
     .todo-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .todo-left { display: flex; align-items: center; gap: 10px; flex: 1; overflow: hidden; }
     .neo-cb { width: 18px; height: 18px; accent-color: #000; cursor: pointer; }
@@ -105,12 +114,10 @@
     .empty-state { text-align: center; padding: 30px 0; font-weight: 800; font-size: 14px; }
     .login-prompt { text-align: center; padding: 40px 20px; font-weight: 800; font-size: 15px; background: var(--card-bg); border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); border-radius: 10px; margin-top: 20px; }
 
-    /* Toast 復原提示 */
     .toast-undo { position: fixed; bottom: 20px; right: 20px; background: var(--accent-yellow); color: #000; border: 2px solid #000; box-shadow: var(--shadow-hard-sm); padding: 10px 16px; border-radius: 8px; font-weight: 900; font-size: 13px; display: flex; align-items: center; gap: 12px; transform: translateY(100px); opacity: 0; transition: all 0.3s ease; z-index: 999; }
     .toast-undo.show { transform: translateY(0); opacity: 1; }
     .btn-undo-action { background: #000; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: 900; font-size: 12px; }
 
-    /* 行動端 RWD 微調 */
     @media (max-width: 480px) {
       body { padding: 16px 10px; }
       .neo-card { padding: 18px 14px; border-width: 2.5px; box-shadow: 4px 4px 0px var(--border-color); }
@@ -123,12 +130,15 @@
 <body>
 
   <div class="neo-card">
+    <div class="offline-banner" id="offlineBanner">⚠️ 當前處於離線狀態，變更將在連線後自動同步</div>
+
     <div class="top-header">
       <div class="title-box" id="appTitle">
         <h1>⚡ 任務清單</h1>
       </div>
       
       <div class="header-controls">
+        <button class="btn-icon" onclick="exportData()" title="匯出資料 JSON">📥</button>
         <button class="btn-icon" onclick="toggleDarkMode()" title="切換夜間模式">🌙</button>
         <div class="auth-section">
           <button id="loginBtn" class="btn-login" onclick="loginWithGoogle()">Google 登入</button>
@@ -199,7 +209,6 @@
     </div>
   </div>
 
-  <!-- Toast 復原通知區塊 -->
   <div class="toast-undo" id="toastUndo">
     <span id="toastText">已刪除任務</span>
     <button class="btn-undo-action" onclick="undoLastAction()">復原 (Undo)</button>
@@ -208,7 +217,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, enableIndexedDbPersistence, writeBatch } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, orderBy, limit, enableIndexedDbPersistence, writeBatch } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCMI_GPgct0PDibMt5itg4_InZ7TJDbLBI",
@@ -225,8 +234,7 @@
     const provider = new GoogleAuthProvider();
 
     enableIndexedDbPersistence(db).catch(err => {
-      if (err.code === 'failed-precondition') console.log('多個頁面開啟，僅支援單一頁面離線快取');
-      else if (err.code === 'unimplemented') console.log('瀏覽器不支援離線快取');
+      if (err.code === 'failed-precondition') console.log('多個分頁開啟，僅支援單一分頁離線快取');
     });
 
     let todos = [];
@@ -237,8 +245,32 @@
     let toastTimer = null;
     let unsubscribe = null;
 
+    // 監聽網路連線狀態
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    function updateOnlineStatus() {
+      const banner = document.getElementById('offlineBanner');
+      if (navigator.onLine) {
+        banner.classList.remove('show');
+      } else {
+        banner.classList.add('show');
+      }
+    }
+
     window.toggleDarkMode = () => {
       document.body.classList.toggle('dark-mode');
+    };
+
+    // 匯出 JSON 資料
+    window.exportData = () => {
+      if (todos.length === 0) return alert('目前沒有任務可供匯出');
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(todos, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `neo_todos_${new Date().toISOString().slice(0,10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
     };
 
     window.toggleHideCompleted = () => {
@@ -247,7 +279,6 @@
       renderTodos();
     };
 
-    // 刪除復原 (Undo) 機制
     function showUndoToast(message, deletedItems) {
       deletedCache = deletedItems;
       const toast = document.getElementById('toastUndo');
@@ -317,8 +348,15 @@
       }
     });
 
+    // 加入 orderBy 與 limit 優化效能
     function loadUserTodos(uid) {
-      const q = query(collection(db, "todos"), where("uid", "==", uid));
+      const q = query(
+        collection(db, "todos"), 
+        where("uid", "==", uid),
+        orderBy("createdAt", "desc"),
+        limit(200)
+      );
+      
       unsubscribe = onSnapshot(q, snapshot => {
         todos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderTodos();
@@ -355,7 +393,6 @@
       showUndoToast('已刪除任務', [target]);
     };
 
-    // 任務原位編輯功能
     window.startEdit = (id) => {
       editingId = id;
       renderTodos();
@@ -368,11 +405,11 @@
 
     window.saveEdit = async (id) => {
       const newText = document.getElementById(`edit-text-${id}`).value.trim();
+      if (!newText) return alert('任務內容不能空白');
+
       const newCat = document.getElementById(`edit-cat-${id}`).value;
       const newPri = document.getElementById(`edit-pri-${id}`).value;
       const newDate = document.getElementById(`edit-date-${id}`).value;
-
-      if (!newText) return;
 
       const docRef = doc(db, "todos", id);
       await updateDoc(docRef, {
@@ -395,8 +432,10 @@
     function renderTodos() {
       const todoList = document.getElementById('todoList');
       const emptyState = document.getElementById('emptyState');
-      const search = document.getElementById('searchInput').value.toLowerCase();
+      const search = document.getElementById('searchInput').value.trim().toLowerCase();
       todoList.innerHTML = '';
+
+      const todayStr = new Date().toISOString().slice(0,10);
 
       let filtered = todos.filter(t => {
         const matchCat = (currentFilter === 'all') || (t.category === currentFilter);
@@ -417,11 +456,12 @@
         emptyState.style.display = 'none';
         filtered.forEach(todo => {
           const li = document.createElement('li');
-          li.className = `todo-item ${todo.completed ? 'completed' : ''}`;
+          const isOverdue = todo.date && todo.date < todayStr && !todo.completed;
+          
+          li.className = `todo-item ${todo.completed ? 'completed' : ''} ${isOverdue ? 'overdue' : ''}`;
           const pLabel = todo.priority === 'P1' ? '高' : todo.priority === 'P2' ? '中' : '低';
 
           if (editingId === todo.id) {
-            // 編輯模式介面
             li.innerHTML = `
               <div class="edit-box">
                 <input type="text" id="edit-text-${todo.id}" class="neo-input" value="${escapeHtml(todo.text)}">
@@ -445,17 +485,16 @@
               </div>
             `;
           } else {
-            // 一般檢視模式介面
             li.innerHTML = `
               <div class="todo-row">
                 <div class="todo-left">
                   <input type="checkbox" class="neo-cb" ${todo.completed ? 'checked' : ''} onclick="toggleTodo('${todo.id}', ${todo.completed})">
                   <div>
                     <div class="todo-title">${escapeHtml(todo.text)}</div>
-                    <div style="display:flex; gap:6px; margin-top:4px; align-items:center;">
+                    <div style="display:flex; gap:6px; margin-top:4px; align-items:center; flex-wrap:wrap;">
                       <span class="badge badge-${todo.priority.toLowerCase()}">${pLabel}</span>
                       <span class="badge badge-cat">${todo.category}</span>
-                      ${todo.date ? `<span style="font-size:10px; font-weight:800;">📅 ${todo.date}</span>` : ''}
+                      ${todo.date ? `<span class="badge ${isOverdue ? 'badge-overdue' : ''}">${isOverdue ? '⚠️ 逾期 ' : '📅 '}${todo.date}</span>` : ''}
                     </div>
                   </div>
                 </div>
@@ -476,6 +515,8 @@
       d.innerText = str;
       return d.innerHTML;
     }
+
+    updateOnlineStatus();
   </script>
 </body>
 </html>
