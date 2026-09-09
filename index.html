@@ -213,13 +213,12 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, orderBy, limit, enableIndexedDbPersistence, writeBatch } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-    // 注意：把 authDomain 改成你自己的 Vercel 網址，避免跨網域 Cookie 被阻擋
     const firebaseConfig = {
       apiKey: "AIzaSyCMI_GPgct0PDibMt5itg4_InZ7TJDbLBI",
-     authDomain: "neo-task-suite.firebaseapp.com",
+      authDomain: "neo-task-suite.firebaseapp.com",
       projectId: "neo-task-suite",
       storageBucket: "neo-task-suite.firebasestorage.app",
       messagingSenderId: "988363277791",
@@ -313,19 +312,13 @@
       showUndoToast(`已清除 ${completedTodos.length} 個已完成任務`, completedTodos);
     };
 
-    // 改用全頁面轉址 (Redirect) 模式，適應手機瀏覽器
     window.loginWithGoogle = () => {
-      signInWithRedirect(auth, provider);
+      signInWithPopup(auth, provider).catch(error => console.error("登入失敗:", error));
     };
 
     window.logout = () => {
       signOut(auth);
     };
-
-    // 接收轉址驗證結果
-    getRedirectResult(auth).catch(error => {
-      if (error.code) console.error("轉址登入發生錯誤:", error);
-    });
 
     onAuthStateChanged(auth, user => {
       if (user) {
