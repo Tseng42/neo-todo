@@ -27,7 +27,6 @@
       --text-main: #000000;
     }
 
-    /* 夜間新粗獷主題 (Dark Neo-Brutalism) */
     body.dark-mode {
       --bg-color: #121212;
       --card-bg: #1e1e1e;
@@ -95,10 +94,30 @@
     .badge-p2 { background: var(--accent-yellow); color: #000; }
     .badge-p3 { background: var(--accent-blue); color: #000; }
     .badge-cat { background: rgba(150,150,150,0.2); }
-    .btn-action { background: var(--accent-pink); color: #fff; border: 1.5px solid var(--border-color); box-shadow: 1px 1px 0px var(--border-color); border-radius: 4px; padding: 2px 6px; font-weight: 900; cursor: pointer; font-size: 12px; }
-    .empty-state { text-align: center; padding: 30px 0; font-weight: 800; font-size: 14px; }
     
+    .btn-group { display: flex; gap: 4px; }
+    .btn-action { background: var(--accent-pink); color: #fff; border: 1.5px solid var(--border-color); box-shadow: 1px 1px 0px var(--border-color); border-radius: 4px; padding: 2px 6px; font-weight: 900; cursor: pointer; font-size: 12px; }
+    .btn-edit { background: var(--accent-yellow); color: #000; }
+
+    .edit-box { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 4px; }
+    .edit-actions { display: flex; justify-content: flex-end; gap: 6px; }
+
+    .empty-state { text-align: center; padding: 30px 0; font-weight: 800; font-size: 14px; }
     .login-prompt { text-align: center; padding: 40px 20px; font-weight: 800; font-size: 15px; background: var(--card-bg); border: 2px solid var(--border-color); box-shadow: var(--shadow-hard-sm); border-radius: 10px; margin-top: 20px; }
+
+    /* Toast 復原提示 */
+    .toast-undo { position: fixed; bottom: 20px; right: 20px; background: var(--accent-yellow); color: #000; border: 2px solid #000; box-shadow: var(--shadow-hard-sm); padding: 10px 16px; border-radius: 8px; font-weight: 900; font-size: 13px; display: flex; align-items: center; gap: 12px; transform: translateY(100px); opacity: 0; transition: all 0.3s ease; z-index: 999; }
+    .toast-undo.show { transform: translateY(0); opacity: 1; }
+    .btn-undo-action { background: #000; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: 900; font-size: 12px; }
+
+    /* 行動端 RWD 微調 */
+    @media (max-width: 480px) {
+      body { padding: 16px 10px; }
+      .neo-card { padding: 18px 14px; border-width: 2.5px; box-shadow: 4px 4px 0px var(--border-color); }
+      .title-box h1 { font-size: 16px; }
+      .btn-add { width: 100%; margin-left: 0; }
+      .toast-undo { left: 10px; right: 10px; bottom: 10px; justify-content: space-between; }
+    }
   </style>
 </head>
 <body>
@@ -180,6 +199,12 @@
     </div>
   </div>
 
+  <!-- Toast 復原通知區塊 -->
+  <div class="toast-undo" id="toastUndo">
+    <span id="toastText">已刪除任務</span>
+    <button class="btn-undo-action" onclick="undoLastAction()">復原 (Undo)</button>
+  </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
@@ -199,7 +224,6 @@
     const db = getFirestore(app);
     const provider = new GoogleAuthProvider();
 
-    // 啟用 Firebase 離線快取
     enableIndexedDbPersistence(db).catch(err => {
       if (err.code === 'failed-precondition') console.log('多個頁面開啟，僅支援單一頁面離線快取');
       else if (err.code === 'unimplemented') console.log('瀏覽器不支援離線快取');
@@ -208,6 +232,9 @@
     let todos = [];
     let currentFilter = 'all';
     let hideCompleted = false;
+    let editingId = null;
+    let deletedCache = [];
+    let toastTimer = null;
     let unsubscribe = null;
 
     window.toggleDarkMode = () => {
@@ -220,16 +247,43 @@
       renderTodos();
     };
 
+    // 刪除復原 (Undo) 機制
+    function showUndoToast(message, deletedItems) {
+      deletedCache = deletedItems;
+      const toast = document.getElementById('toastUndo');
+      document.getElementById('toastText').innerText = message;
+      toast.classList.add('show');
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+        deletedCache = [];
+      }, 5000);
+    }
+
+    window.undoLastAction = async () => {
+      if (deletedCache.length === 0 || !auth.currentUser) return;
+      const batch = writeBatch(db);
+      deletedCache.forEach(item => {
+        const newRef = doc(collection(db, "todos"));
+        const { id, ...data } = item;
+        batch.set(newRef, data);
+      });
+      await batch.commit();
+      document.getElementById('toastUndo').classList.remove('show');
+      deletedCache = [];
+    };
+
     window.clearCompletedTodos = async () => {
       const completedTodos = todos.filter(t => t.completed);
       if (completedTodos.length === 0) return;
-      if (!confirm(`確定要清除 ${completedTodos.length} 個已完成任務嗎？`)) return;
 
       const batch = writeBatch(db);
       completedTodos.forEach(t => {
         batch.delete(doc(db, "todos", t.id));
       });
       await batch.commit();
+      showUndoToast(`已清除 ${completedTodos.length} 個已完成任務`, completedTodos);
     };
 
     window.loginWithGoogle = () => {
@@ -294,8 +348,41 @@
     };
 
     window.deleteTodo = async (id) => {
+      const target = todos.find(t => t.id === id);
+      if (!target) return;
       const docRef = doc(db, "todos", id);
       await deleteDoc(docRef);
+      showUndoToast('已刪除任務', [target]);
+    };
+
+    // 任務原位編輯功能
+    window.startEdit = (id) => {
+      editingId = id;
+      renderTodos();
+    };
+
+    window.cancelEdit = () => {
+      editingId = null;
+      renderTodos();
+    };
+
+    window.saveEdit = async (id) => {
+      const newText = document.getElementById(`edit-text-${id}`).value.trim();
+      const newCat = document.getElementById(`edit-cat-${id}`).value;
+      const newPri = document.getElementById(`edit-pri-${id}`).value;
+      const newDate = document.getElementById(`edit-date-${id}`).value;
+
+      if (!newText) return;
+
+      const docRef = doc(db, "todos", id);
+      await updateDoc(docRef, {
+        text: newText,
+        category: newCat,
+        priority: newPri,
+        date: newDate
+      });
+
+      editingId = null;
     };
 
     window.setFilter = (filter, btn) => {
@@ -333,22 +420,52 @@
           li.className = `todo-item ${todo.completed ? 'completed' : ''}`;
           const pLabel = todo.priority === 'P1' ? '高' : todo.priority === 'P2' ? '中' : '低';
 
-          li.innerHTML = `
-            <div class="todo-row">
-              <div class="todo-left">
-                <input type="checkbox" class="neo-cb" ${todo.completed ? 'checked' : ''} onclick="toggleTodo('${todo.id}', ${todo.completed})">
-                <div>
-                  <div class="todo-title">${escapeHtml(todo.text)}</div>
-                  <div style="display:flex; gap:6px; margin-top:4px; align-items:center;">
-                    <span class="badge badge-${todo.priority.toLowerCase()}">${pLabel}</span>
-                    <span class="badge badge-cat">${todo.category}</span>
-                    ${todo.date ? `<span style="font-size:10px; font-weight:800;">📅 ${todo.date}</span>` : ''}
-                  </div>
+          if (editingId === todo.id) {
+            // 編輯模式介面
+            li.innerHTML = `
+              <div class="edit-box">
+                <input type="text" id="edit-text-${todo.id}" class="neo-input" value="${escapeHtml(todo.text)}">
+                <div class="input-options">
+                  <select id="edit-cat-${todo.id}" class="neo-select">
+                    <option value="工作" ${todo.category === '工作' ? 'selected' : ''}>💼 工作</option>
+                    <option value="個人" ${todo.category === '個人' ? 'selected' : ''}>🏠 個人</option>
+                    <option value="購物" ${todo.category === '購物' ? 'selected' : ''}>🛒 購物</option>
+                  </select>
+                  <select id="edit-pri-${todo.id}" class="neo-select">
+                    <option value="P3" ${todo.priority === 'P3' ? 'selected' : ''}>🔵 低優先</option>
+                    <option value="P2" ${todo.priority === 'P2' ? 'selected' : ''}>🟡 中優先</option>
+                    <option value="P1" ${todo.priority === 'P1' ? 'selected' : ''}>🔴 高優先</option>
+                  </select>
+                  <input type="date" id="edit-date-${todo.id}" class="neo-date" value="${todo.date || ''}">
+                </div>
+                <div class="edit-actions">
+                  <button class="btn-tool" onclick="cancelEdit()">取消</button>
+                  <button class="btn-action" style="background:var(--accent-green); color:#000;" onclick="saveEdit('${todo.id}')">儲存</button>
                 </div>
               </div>
-              <button class="btn-action" onclick="deleteTodo('${todo.id}')">✕</button>
-            </div>
-          `;
+            `;
+          } else {
+            // 一般檢視模式介面
+            li.innerHTML = `
+              <div class="todo-row">
+                <div class="todo-left">
+                  <input type="checkbox" class="neo-cb" ${todo.completed ? 'checked' : ''} onclick="toggleTodo('${todo.id}', ${todo.completed})">
+                  <div>
+                    <div class="todo-title">${escapeHtml(todo.text)}</div>
+                    <div style="display:flex; gap:6px; margin-top:4px; align-items:center;">
+                      <span class="badge badge-${todo.priority.toLowerCase()}">${pLabel}</span>
+                      <span class="badge badge-cat">${todo.category}</span>
+                      ${todo.date ? `<span style="font-size:10px; font-weight:800;">📅 ${todo.date}</span>` : ''}
+                    </div>
+                  </div>
+                </div>
+                <div class="btn-group">
+                  <button class="btn-action btn-edit" onclick="startEdit('${todo.id}')">✏️</button>
+                  <button class="btn-action" onclick="deleteTodo('${todo.id}')">✕</button>
+                </div>
+              </div>
+            `;
+          }
           todoList.appendChild(li);
         });
       }
